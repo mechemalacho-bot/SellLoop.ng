@@ -1,0 +1,374 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SellLoop NG</title>
+<style>
+:root {
+  --green: #146c43;
+  --light: #e9f7ef;
+  --bg: #f5f8f6;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: var(--bg);
+  color: #17231c;
+}
+header {
+  background: var(--green);
+  color: white;
+  padding: 20px;
+}
+header h1 { margin: 0; font-size: 25px; }
+header p { margin-bottom: 0; font-size: 13px; }
+main { max-width: 850px; margin: auto; padding: 16px; }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.card, section {
+  background: white;
+  border: 1px solid #e0e8e2;
+  border-radius: 13px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.stats .card { margin: 0; }
+.card span { color: #657269; font-size: 12px; }
+.card h2 { color: var(--green); margin: 9px 0 0; }
+h3 { margin-top: 0; }
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: bold;
+  margin: 12px 0 6px;
+}
+input, select, button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 15px;
+}
+input, select {
+  border: 1px solid #cfdad1;
+  background: white;
+}
+button {
+  border: 0;
+  background: var(--green);
+  color: white;
+  font-weight: bold;
+  margin-top: 12px;
+  cursor: pointer;
+}
+button.delete { background: #a52c2c; width: auto; }
+.product, .order {
+  border-top: 1px solid #e5ebe6;
+  padding: 12px 0;
+  overflow-wrap: anywhere;
+}
+.muted { color: #657269; font-size: 13px; }
+.notice { color: var(--green); font-size: 13px; }
+.empty { color: #657269; font-size: 13px; }
+a { color: var(--green); }
+footer { text-align: center; padding: 20px; color: #657269; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SellLoop NG</h1>
+  <p>Your business. Your products. Your sales.</p>
+</header>
+
+<main>
+  <h2>Business dashboard 👋</h2>
+  <p class="muted">Manage your stock and orders in one place.</p>
+
+  <div class="stats">
+    <div class="card">
+      <span>Recorded paid sales</span>
+      <h2 id="sales">₦0</h2>
+    </div>
+    <div class="card">
+      <span>Total orders</span>
+      <h2 id="orderCount">0</h2>
+    </div>
+    <div class="card">
+      <span>Unpaid orders</span>
+      <h2 id="unpaid">₦0</h2>
+    </div>
+    <div class="card">
+      <span>Low-stock products</span>
+      <h2 id="lowStock">0</h2>
+    </div>
+  </div>
+
+  <section>
+    <h3>➕ Add a product</h3>
+    <form id="productForm">
+      <label for="productName">Product name</label>
+      <input id="productName" required maxlength="80"
+        placeholder="e.g. Ankara shirt">
+
+      <label for="price">Price in naira (₦)</label>
+      <input id="price" type="number" min="1" step="1"
+        required placeholder="15000">
+
+      <label for="stock">Quantity in stock</label>
+      <input id="stock" type="number" min="0" step="1"
+        required placeholder="10">
+
+      <button type="submit">Add product</button>
+    </form>
+  </section>
+
+  <section>
+    <h3>📦 Your products</h3>
+    <div id="products"><p class="empty">No products added yet.</p></div>
+  </section>
+
+  <section>
+    <h3>🛍️ Record an order</h3>
+    <form id="orderForm">
+      <label for="orderProduct">Choose product</label>
+      <select id="orderProduct" required></select>
+
+      <label for="quantity">Quantity sold</label>
+      <input id="quantity" type="number" min="1" step="1"
+        value="1" required>
+
+      <label for="payment">Payment status</label>
+      <select id="payment">
+        <option value="paid">Paid</option>
+        <option value="pending">Awaiting payment</option>
+      </select>
+
+      <button id="orderButton" type="submit">Record order</button>
+    </form>
+    <p id="message" class="notice" role="status"></p>
+  </section>
+
+  <section>
+    <h3>🧾 Recent orders</h3>
+    <div id="orders"><p class="empty">No orders recorded yet.</p></div>
+  </section>
+
+  <section>
+    <h3>💬 Contact your customers</h3>
+    <p class="muted">Create a WhatsApp chat link for your business.</p>
+    <label for="business">Business name</label>
+    <input id="business" placeholder="e.g. Ada Fashion">
+
+    <label for="phone">WhatsApp number with country code</label>
+    <input id="phone" inputmode="tel"
+      placeholder="2348012345678">
+
+    <button id="whatsappButton" type="button">
+      Open WhatsApp
+    </button>
+    <p id="whatsappMessage" class="notice"></p>
+  </section>
+</main>
+
+<footer>
+  SellLoop NG — First working prototype
+  <br>Demo information is stored only in this browser.
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const KEY = "sellloop-ng-demo-v1";
+let data = { products: [], orders: [] };
+
+try {
+  const saved = localStorage.getItem(KEY);
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed.products) &&
+        Array.isArray(parsed.orders)) data = parsed;
+  }
+} catch (e) {
+  console.warn("Saved demo data could not be read.");
+}
+
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(data));
+  } catch (e) {
+    alert("The browser could not save your data.");
+  }
+}
+
+function money(n) {
+  return "₦" + Number(n).toLocaleString("en-NG", {
+    maximumFractionDigits: 0
+  });
+}
+
+function safe(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;",
+    '"': "&quot;", "'": "&#39;"
+  })[ch]);
+}
+
+function render() {
+  const paid = data.orders
+    .filter(o => o.payment === "paid")
+    .reduce((sum, o) => sum + o.total, 0);
+
+  const unpaid = data.orders
+    .filter(o => o.payment === "pending")
+    .reduce((sum, o) => sum + o.total, 0);
+
+  $("sales").textContent = money(paid);
+  $("unpaid").textContent = money(unpaid);
+  $("orderCount").textContent = data.orders.length;
+  $("lowStock").textContent =
+    data.products.filter(p => p.stock <= 5).length;
+
+  $("products").innerHTML = data.products.length
+    ? data.products.map(p => `
+      <div class="product">
+        <strong>${safe(p.name)}</strong><br>
+        ${money(p.price)} · Stock: ${p.stock}
+        ${p.stock <= 5 ? " · ⚠️ Low stock" : ""}
+        <br>
+        <button class="delete" data-delete="${p.id}">
+          Delete product
+        </button>
+      </div>`).join("")
+    : '<p class="empty">No products added yet.</p>';
+
+  $("orderProduct").innerHTML =
+    '<option value="">Choose a product</option>' +
+    data.products.filter(p => p.stock > 0).map(p =>
+      `<option value="${p.id}">${safe(p.name)} — ${money(p.price)} (${p.stock} left)</option>`
+    ).join("");
+
+  $("orderButton").disabled =
+    !data.products.some(p => p.stock > 0);
+
+  $("orders").innerHTML = data.orders.length
+    ? [...data.orders].reverse().slice(0, 10).map(o => `
+      <div class="order">
+        <strong>${safe(o.name)}</strong><br>
+        ${o.quantity} × ${money(o.price)} = <strong>${money(o.total)}</strong>
+        <br><span class="muted">${safe(o.payment === "paid" ? "Paid" : "Awaiting payment")}</span>
+      </div>`).join("")
+    : '<p class="empty">No orders recorded yet.</p>';
+}
+
+$("productForm").addEventListener("submit", event => {
+  event.preventDefault();
+
+  const name = $("productName").value.trim();
+  const price = Number($("price").value);
+  const stock = Number($("stock").value);
+
+  if (!name || !Number.isFinite(price) || price <= 0 ||
+      !Number.isInteger(stock) || stock < 0) {
+    alert("Check the product name, price, and stock.");
+    return;
+  }
+
+  data.products.push({
+    id: Date.now().toString() + Math.random().toString(16).slice(2),
+    name, price, stock
+  });
+
+  save();
+  render();
+  event.target.reset();
+});
+
+$("products").addEventListener("click", event => {
+  const button = event.target.closest("[data-delete]");
+  if (!button) return;
+
+  const id = button.dataset.delete;
+
+  if (data.orders.some(o => o.productId === id)) {
+    alert("This product has an order. Keep it in your records.");
+    return;
+  }
+
+  data.products = data.products.filter(p => p.id !== id);
+  save();
+  render();
+});
+
+$("orderForm").addEventListener("submit", event => {
+  event.preventDefault();
+
+  const product = data.products.find(
+    p => p.id === $("orderProduct").value
+  );
+  const quantity = Number($("quantity").value);
+
+  if (!product || !Number.isInteger(quantity) || quantity < 1) {
+    $("message").textContent = "Choose a product and valid quantity.";
+    return;
+  }
+
+  if (quantity > product.stock) {
+    $("message").textContent =
+      "Only " + product.stock + " item(s) remain in stock.";
+    return;
+  }
+
+  data.orders.push({
+    productId: product.id,
+    name: product.name,
+    price: product.price,
+    quantity,
+    total: product.price * quantity,
+    payment: $("payment").value,
+    date: new Date().toISOString()
+  });
+
+  product.stock -= quantity;
+  save();
+  render();
+
+  $("quantity").value = 1;
+  $("message").textContent =
+    "Order recorded and stock updated successfully.";
+});
+
+$("whatsappButton").addEventListener("click", () => {
+  const business = $("business").value.trim();
+  const phone = $("phone").value.replace(/\D/g, "");
+
+  if (!business) {
+    $("whatsappMessage").textContent =
+      "Enter your business name first.";
+    return;
+  }
+
+  if (phone.length < 10 || phone.length > 15) {
+    $("whatsappMessage").textContent =
+      "Enter a valid number including country code, e.g. 2348012345678.";
+    return;
+  }
+
+  const message = "Hello! Welcome to " + business +
+    ". Please message us to ask about our products or place an order.";
+
+  window.open(
+    "https://wa.me/" + phone + "?text=" +
+    encodeURIComponent(message),
+    "_blank",
+    "noopener"
+  );
+});
+
+render();
+</script>
+</body>
+</html>
